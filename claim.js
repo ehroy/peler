@@ -1,7 +1,7 @@
 const { SuiClient, getFullnodeUrl } = require("@mysten/sui.js/client");
 const { TransactionBlock } = require("@mysten/sui.js/transactions");
 const { Ed25519Keypair } = require("@mysten/sui.js/keypairs/ed25519");
-const fs = require("fs");
+const fs = require("fs-extra");
 const inquirer = require("inquirer");
 const delay = require("delay");
 const BigNumber = require("bignumber.js");
