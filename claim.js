@@ -82,7 +82,7 @@ const calculateFinishingInfo = (data, state) => {
     .then((answers) => {
       return answers.selected;
     });
-  const pharse = fs.readFileSync(jumlah, "utf8").replaceAll("\r").split("\n");
+  const pharse = fs.readFileSync(jumlah, "utf8").replaceAll("\r","").split("\n");
   while (true) {
     for (let index = 0; index < pharse.length; index++) {
       try {
