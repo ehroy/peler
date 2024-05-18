@@ -55,7 +55,7 @@ const delay = require("delay");
       const txb = new TransactionBlock();
       await txb.setSender(keypair.getPublicKey().toSuiAddress());
       const [coin] = await txb.splitCoins(txb.gas, [
-        parseInt(jumlah) * 1000000000,
+        parseFloat(jumlah.toString()) * 1000000000,
       ]);
       console.log("mencoba proses trx");
 
