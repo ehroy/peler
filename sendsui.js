@@ -28,8 +28,11 @@ const delay = require("delay");
     .then((answers) => {
       return answers.selected;
     });
-  const pharse = fs.readFileSync(listaddress, "utf8").replaceAll("\r").split("\n");
-  let jumlah = await inquirer
+  const pharse = fs
+    .readFileSync(listaddress, "utf8")
+    .replaceAll("\r", "")
+    .split("\n");
+  const jumlah = await inquirer
     .prompt([
       {
         type: "input",
@@ -57,7 +60,7 @@ const delay = require("delay");
       const [coin] = await txb.splitCoins(txb.gas, [
         parseFloat(jumlah.toString()) * 1000000000,
       ]);
-      console.log("mencoba proses trx");
+      console.log("mencoba proses trx dengan wallet", pharseinput);
 
       await txb.transferObjects([coin], pharseinput);
       const { bytes, signature } = await txb.sign({
@@ -75,13 +78,13 @@ const delay = require("delay");
       if (result.effects.status === "success") {
         console.log(
           "success tranfers token SUI =>",
-          parseInt(jumlah) * 1000000000
+          parseFloat(jumlah.toString()) * 1000000000
         );
       } else {
         console.log(result.effects.status);
       }
     } catch (error) {
-      console.log(error.toString());
+      console.log(error);
       await inquirer.prompt([
         {
           type: "input",
@@ -90,7 +93,7 @@ const delay = require("delay");
         },
       ]);
     }
-
+    await delay(2000);
     console.log("");
   }
   await inquirer
