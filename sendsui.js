@@ -28,7 +28,7 @@ const delay = require("delay");
     .then((answers) => {
       return answers.selected;
     });
-  const pharse = fs.readFileSync(list, "utf8").replaceAll("\r").split("\n");
+  const pharse = fs.readFileSync(listaddress, "utf8").replaceAll("\r").split("\n");
   let jumlah = await inquirer
     .prompt([
       {
@@ -46,7 +46,7 @@ const delay = require("delay");
       const client = new SuiClient({
         url: "https://fullnode.mainnet.sui.io:443",
       });
-      const keypair = Ed25519Keypair.deriveKeypair(pharseinput);
+      const keypair = Ed25519Keypair.deriveKeypair(list);
       console.log("Try Login with pahrse");
       console.log(
         "wallet address sui =>",
@@ -59,7 +59,7 @@ const delay = require("delay");
       ]);
       console.log("mencoba proses trx");
 
-      await txb.transferObjects([coin], listaddress.toString());
+      await txb.transferObjects([coin], pharseinput);
       const { bytes, signature } = await txb.sign({
         client,
         signer: keypair,
