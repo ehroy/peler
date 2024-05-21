@@ -151,7 +151,11 @@ const calculateFinishingInfo = (data, state) => {
         jumlah.data[41].coinObjectId,
         jumlah.data[42].coinObjectId,
         jumlah.data[43].coinObjectId,
-        jumlah.data[50].coinObjectId,
+        jumlah.data[44].coinObjectId,
+        jumlah.data[45].coinObjectId,
+        jumlah.data[46].coinObjectId,
+        jumlah.data[47].coinObjectId,
+        jumlah.data[48].coinObjectId,
       ]);
       console.log(coin);
       await txb.transferObjects(
