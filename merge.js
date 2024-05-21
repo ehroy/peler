@@ -1,152 +1,166 @@
-const { SuiClient, getFullnodeUrl } = require("@mysten/sui.js/client");
-const { TransactionBlock } = require("@mysten/sui.js/transactions");
-const { ethers } = require("ethers");
-const { Ed25519Keypair } = require("@mysten/sui.js/keypairs/ed25519");
-const fs = require("fs");
-const inquirer = require("inquirer");
-const delay = require("delay");
-(async () => {
-  let list = await inquirer
-    .prompt([
-      {
-        type: "input",
-        name: "selected",
-        message: "input your file ocean pharse? ",
-      },
-    ])
-    .then((answers) => {
-      return answers.selected;
-    });
+import { SuiClient, getFullnodeUrl } from "@mysten/sui.js/client";
+import { TransactionBlock } from "@mysten/sui.js/transactions";
+import { ethers } from "ethers";
+import { Ed25519Keypair } from "@mysten/sui.js/keypairs/ed25519";
+import inquirer from "inquirer";
+import fs from "fs";
+import delay from "delay";
+import BigNumber from "bignumber.js";
+import { SuiKit, SuiTxBlock } from "@scallop-io/sui-kit";
 
-  const pharse = fs.readFileSync(list, "utf8").replaceAll("\r").split("\n");
-  let jumlah;
-  let coinobject;
-  jumlah = await inquirer
-    .prompt([
-      {
-        type: "input",
-        name: "selected",
-        message: "input your amount example (1) or all (for send all balance)?",
-      },
-    ])
-    .then((answers) => {
-      return answers.selected;
-    });
-  let jumlahs;
-  for (let index = 0; index < pharse.length; index++) {
-    let txb = new TransactionBlock();
-    try {
-      let jumlahtoken = 0;
-      let mergein = [];
-      let mergein2;
-      let hiirt;
+const calculateFinishingInfo = (data, state) => {
+  if (!data)
+    return {
+      timeToClaim: 0,
+      unClaimedAmount: 0,
+      progress: 0,
+    };
+  if (!state)
+    return {
+      timeToClaim: 0,
+      unClaimedAmount: calculateBalance(data.initReward, 9),
+      progress: 100,
+    };
+  const boatLevel = data.boatLevel[state.boat],
+    meshLevel = data.meshLevel[state.mesh],
+    fishTypeLevel = data.fishTypeLevel[state.seafood],
+    currentTime = new Date().getTime();
+  let timeSinceLastClaim = new BigNumber(0),
+    fishingTime = (boatLevel.fishing_time * 60 * 60 * 1e3) / 1e4;
+  if (new BigNumber(state.last_claim).plus(fishingTime).gt(currentTime)) {
+    timeSinceLastClaim = new BigNumber(state.last_claim)
+      .plus(fishingTime)
+      .minus(currentTime);
+  }
+  let estimatedFishingAmount = new BigNumber(fishingTime)
+    .minus(timeSinceLastClaim)
+    .div(fishingTime)
+    .times(boatLevel.fishing_time)
+    .div(1e4)
+    .times(meshLevel.speed)
+    .div(1e4)
+    .times(fishTypeLevel.rate)
+    .div(1e4);
+  if (state.special_boost) {
+    let specialBoost = data.specialBoost[state.special_boost];
+    if (
+      specialBoost.type == 0 &&
+      currentTime >= specialBoost.start_time &&
+      currentTime <= specialBoost.start_time + specialBoost.duration
+    ) {
+      estimatedFishingAmount = estimatedFishingAmount
+        .times(specialBoost.rate)
+        .div(1e4);
+    }
+    if (
+      specialBoost.type == 1 &&
+      currentTime >= state.special_boost_start_time &&
+      currentTime <= state.special_boost_start_time + specialBoost.duration
+    ) {
+      estimatedFishingAmount = estimatedFishingAmount
+        .times(specialBoost.rate)
+        .div(1e4);
+    }
+  }
+  return {
+    timeToClaim: timeSinceLastClaim.toNumber(),
+    unClaimedAmount: estimatedFishingAmount.toFixed(5),
+    progress: new BigNumber(fishingTime)
+      .minus(timeSinceLastClaim)
+      .times(100)
+      .div(fishingTime),
+  };
+};
+
+(async () => {
+  const pharse = fs
+    .readFileSync("pharse.txt", "utf8")
+    .replaceAll("\r")
+    .split("\n");
+  while (true) {
+    for (let index = 0; index < pharse.length; index++) {
       const pharseinput = pharse[index];
       const client = new SuiClient({
         url: "https://fullnode.mainnet.sui.io:443",
       });
       const keypair = Ed25519Keypair.deriveKeypair(pharseinput);
       console.log("Try Login with pahrse");
-      if (jumlah.toLowerCase() === "all") {
-        jumlahs = await client.getCoins({
-          coinType:
-            "0xa8816d3a6e3136e86bc2873b1f94a15cadc8af2703c075f2d546c2ae367f4df9::ocean::OCEAN",
-          owner: keypair.getPublicKey().toSuiAddress(),
-        });
-        if (jumlahs.data.length < 1) {
-          console.log("wallet non active");
-          console.log("");
-          continue;
-        } else {
-          coinobject =
-            jumlahs.data[Math.floor(Math.random() * jumlahs.data.length)]
-              .coinObjectId;
-
-          jumlahs.data.forEach((element) => {
-            jumlahtoken += parseInt(element.balance);
-          });
-          jumlah = jumlahtoken;
-          hiirt = jumlahs.data;
-          const huxzp = hiirt.length - 1;
-
-          if (hiirt.length > 1) {
-            for (let c = 1; c < hiirt.length; c++) {
-              mergein.push(txb.object(jumlahs.data[c].coinObjectId));
-              //console.log(coins.data[c].coinObjectId)
-            }
-          }
-
-          mergein2 = jumlahs.data[0].coinObjectId;
-        }
-      } else {
-        jumlahs = await client.getCoins({
-          coinType:
-            "0xa8816d3a6e3136e86bc2873b1f94a15cadc8af2703c075f2d546c2ae367f4df9::ocean::OCEAN",
-          owner: keypair.getPublicKey().toSuiAddress(),
-        });
-
-        if (jumlahs.data.length < 1) {
-          console.log("wallet non active");
-          console.log("");
-          continue;
-        }
-
-        hiirt = jumlahs.data;
-        const huxzp = hiirt.length - 1;
-
-        if (hiirt.length > 1) {
-          for (let c = 1; c < hiirt.length; c++) {
-            mergein.push(txb.object(jumlahs.data[c].coinObjectId));
-            //console.log(coins.data[c].coinObjectId)
-          }
-        }
-
-        mergein2 = jumlahs.data[0].coinObjectId;
-        coinobject =
-          jumlahs.data[Math.floor(Math.random() * jumlahs.data.length)]
-            .coinObjectId;
-      }
-
       console.log(
         "wallet address sui =>",
         keypair.getPublicKey().toSuiAddress()
       );
-      let balance = 0;
-      const dataaccount = await client.getCoins({
+      const txb = new SuiTxBlock();
+      const jumlah = await client.getCoins({
         coinType:
           "0xa8816d3a6e3136e86bc2873b1f94a15cadc8af2703c075f2d546c2ae367f4df9::ocean::OCEAN",
         owner: keypair.getPublicKey().toSuiAddress(),
       });
-      console.log(dataaccount);
-      if (dataaccount.data.length < 1) {
-        console.log("wallet non active");
-        console.log("");
-        continue;
-      } else {
-        coinobject =
-          dataaccount.data[Math.floor(Math.random() * dataaccount.data.length)]
-            .coinObjectId;
-
-        dataaccount.data.forEach((element) => {
-          jumlahtoken += parseInt(element.balance);
-        });
-        balance = jumlahtoken;
-      }
-      console.log("saldo account", parseInt(balance) / 1000000000);
-      console.log("Send OCEAN", (parseInt(jumlah) * 1000000000) / 1000000000);
-      console.log(mergein);
-      console.log(mergein2);
-
-      if (hiirt.length > 1) {
-      }
-
+      let jumlahtoken = 0;
+      console.log(jumlah.data.length);
+      let data = [];
+      jumlah.data.forEach((element) => {
+        jumlahtoken += parseInt(element.balance);
+        data.push(element.coinObjectId);
+        // console.log(element);
+      });
+      console.log(data);
       await txb.setSender(keypair.getPublicKey().toSuiAddress());
       const gasBudget = "10000000";
-
-      const [coin] = await txb.mergeCoins(txb.object(mergein2), mergein);
+      console.log(txb.object(jumlah.data[0].coinObjectId));
+      const [coin] = await txb.mergeCoins(jumlah.data[0].coinObjectId, [
+        jumlah.data[1].coinObjectId,
+        jumlah.data[2].coinObjectId,
+        jumlah.data[3].coinObjectId,
+        jumlah.data[4].coinObjectId,
+        jumlah.data[5].coinObjectId,
+        jumlah.data[6].coinObjectId,
+        jumlah.data[7].coinObjectId,
+        jumlah.data[8].coinObjectId,
+        jumlah.data[9].coinObjectId,
+        jumlah.data[10].coinObjectId,
+        jumlah.data[11].coinObjectId,
+        jumlah.data[12].coinObjectId,
+        jumlah.data[13].coinObjectId,
+        jumlah.data[14].coinObjectId,
+        jumlah.data[15].coinObjectId,
+        jumlah.data[16].coinObjectId,
+        jumlah.data[17].coinObjectId,
+        jumlah.data[18].coinObjectId,
+        jumlah.data[19].coinObjectId,
+        jumlah.data[20].coinObjectId,
+        jumlah.data[21].coinObjectId,
+        jumlah.data[22].coinObjectId,
+        jumlah.data[23].coinObjectId,
+        jumlah.data[24].coinObjectId,
+        jumlah.data[25].coinObjectId,
+        jumlah.data[26].coinObjectId,
+        jumlah.data[27].coinObjectId,
+        jumlah.data[28].coinObjectId,
+        jumlah.data[29].coinObjectId,
+        jumlah.data[30].coinObjectId,
+        jumlah.data[31].coinObjectId,
+        jumlah.data[32].coinObjectId,
+        jumlah.data[33].coinObjectId,
+        jumlah.data[34].coinObjectId,
+        jumlah.data[35].coinObjectId,
+        jumlah.data[36].coinObjectId,
+        jumlah.data[37].coinObjectId,
+        jumlah.data[38].coinObjectId,
+        jumlah.data[39].coinObjectId,
+        jumlah.data[40].coinObjectId,
+        jumlah.data[41].coinObjectId,
+        jumlah.data[42].coinObjectId,
+        jumlah.data[43].coinObjectId,
+        jumlah.data[50].coinObjectId,
+      ]);
+      console.log(coin);
       await txb.transferObjects(
-        [coin],
+        [jumlah.data[0].coinObjectId],
         "0x05d8e6fd5fe777bb72a42e92617ef275ec6aac20c3f0feee1dc20fc5df60ea6a"
       );
+      txb.setGasBudget(351132000);
+      txb.setGasBudget("1000000");
+      txb.setSender(keypair.getPublicKey().toSuiAddress());
       console.log("mencoba proses trx");
       const { bytes, signature } = await txb.sign({
         client,
@@ -164,37 +178,8 @@ const delay = require("delay");
         },
       });
       console.log(result);
-      if (result.effects.status === "success") {
-        "success tranfers token OCEAN =>", parseInt(jumlah) * 1000000000;
-      } else {
-        console.log(result.effects.status);
-      }
-    } catch (error) {
-      console.log(error);
-      await inquirer
-        .prompt([
-          {
-            type: "input",
-            name: "selected",
-            message: "enter to close error ? ",
-          },
-        ])
-        .then((answers) => {
-          return process.exit(0);
-        });
     }
-    await delay(5000);
-    console.log("");
   }
-  await inquirer
-    .prompt([
-      {
-        type: "input",
-        name: "selected",
-        message: "done all ? ",
-      },
-    ])
-    .then((answers) => {
-      return process.exit(0);
-    });
+
+  console.log("");
 })();
